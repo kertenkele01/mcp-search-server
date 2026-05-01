@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 
 /* ---------------------------
-   MCP TOOL LIST
+   TOOL LIST
 ----------------------------*/
 app.get("/tools/list", (req, res) => {
   res.json({
@@ -28,24 +28,53 @@ app.get("/tools/list", (req, res) => {
 });
 
 /* ---------------------------
-   MCP TOOL CALL
+   TOOL CALL (ROBUST FIX)
 ----------------------------*/
 app.post("/tools/call", async (req, res) => {
   try {
-    const { name, arguments: args } = req.body;
+    const raw = req.body || {};
 
-    if (name !== "search_web") {
-      return res.json({ error: "Unknown tool" });
+    // 🔥 LiteLLM bazen body içine sarıyor
+    const payload = raw.body || raw;
+
+    // 🔥 tool name farklı formatlarda gelebilir
+    let name =
+      payload.name ||
+      payload.tool ||
+      payload.tool_name ||
+      "";
+
+    // 🔥 prefix temizle (Search_mcp1-search_web -> search_web)
+    if (name.includes("-")) {
+      name = name.split("-").pop();
     }
 
-    if (!args?.query) {
-      return res.json({ error: "Missing query" });
+    // 🔥 arguments farklı gelebilir
+    const args =
+      payload.arguments ||
+      payload.args ||
+      {};
+
+    if (name !== "search_web") {
+      return res.json({
+        error: "Unknown tool",
+        got: name,
+        raw: payload
+      });
+    }
+
+    if (!args.query) {
+      return res.json({
+        error: "Missing query"
+      });
     }
 
     const base = process.env.SEARXNG_URL;
 
     if (!base) {
-      return res.json({ error: "SEARXNG_URL missing in env" });
+      return res.json({
+        error: "SEARXNG_URL missing"
+      });
     }
 
     const query = encodeURIComponent(args.query);
@@ -89,7 +118,7 @@ app.get("/", (req, res) => {
 });
 
 /* ---------------------------
-   START SERVER
+   START
 ----------------------------*/
 const PORT = process.env.PORT || 3000;
 

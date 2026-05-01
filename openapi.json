@@ -1,0 +1,38 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "MCP Search",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://a9f2l2wfmv5mpxawip9iyo5k.46.224.84.172.sslip.io"
+    }
+  ],
+  "paths": {
+    "/tools/call": {
+      "post": {
+        "operationId": "search_web",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "arguments": {
+                    "type": "object",
+                    "properties": {
+                      "query": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

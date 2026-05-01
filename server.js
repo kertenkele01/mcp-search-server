@@ -1,10 +1,14 @@
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
+
 const express = require("express");
 const app = express();
 
 app.use(express.json());
 
-// MCP TOOL LIST
+/* ---------------------------
+   MCP TOOL LIST
+----------------------------*/
 app.get("/tools/list", (req, res) => {
   res.json({
     tools: [
@@ -23,7 +27,9 @@ app.get("/tools/list", (req, res) => {
   });
 });
 
-// MCP TOOL CALL
+/* ---------------------------
+   MCP TOOL CALL
+----------------------------*/
 app.post("/tools/call", async (req, res) => {
   try {
     const { name, arguments: args } = req.body;
@@ -32,10 +38,19 @@ app.post("/tools/call", async (req, res) => {
       return res.json({ error: "Unknown tool" });
     }
 
+    if (!args?.query) {
+      return res.json({ error: "Missing query" });
+    }
+
+    const base = process.env.SEARXNG_URL;
+
+    if (!base) {
+      return res.json({ error: "SEARXNG_URL missing in env" });
+    }
+
     const query = encodeURIComponent(args.query);
 
-    // 🔥 IMPORTANT: JSON MODE
-    const url = `http://SEARXNG_URL/search?q=${query}&format=json`;
+    const url = `${base}/search?q=${query}&format=json`;
 
     const response = await fetch(url);
 
@@ -48,8 +63,7 @@ app.post("/tools/call", async (req, res) => {
 
     const data = await response.json();
 
-    // sadece önemli alanları döndürelim
-    const results = (data.results || []).slice(0, 5).map(r => ({
+    const results = (data.results || []).slice(0, 5).map((r) => ({
       title: r.title,
       url: r.url,
       snippet: r.content
@@ -67,11 +81,16 @@ app.post("/tools/call", async (req, res) => {
   }
 });
 
-// HEALTH CHECK
+/* ---------------------------
+   HEALTH CHECK
+----------------------------*/
 app.get("/", (req, res) => {
   res.json({ status: "MCP server running" });
 });
 
+/* ---------------------------
+   START SERVER
+----------------------------*/
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {

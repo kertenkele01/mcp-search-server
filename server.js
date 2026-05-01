@@ -28,33 +28,41 @@ app.get("/tools/list", (req, res) => {
 });
 
 /* ---------------------------
-   TOOL CALL (ROBUST FIX)
+   TOOL CALL (FULL FIX)
 ----------------------------*/
 app.post("/tools/call", async (req, res) => {
   try {
     const raw = req.body || {};
 
-    // 🔥 LiteLLM bazen body içine sarıyor
-    const payload = raw.body || raw;
+    // 🔥 1. farklı wrapper formatlarını çöz
+    let payload = raw.body || raw.data || raw;
 
-    // 🔥 tool name farklı formatlarda gelebilir
+    // 🔥 2. string JSON ise parse et
+    if (typeof payload === "string") {
+      try {
+        payload = JSON.parse(payload);
+      } catch (e) {}
+    }
+
+    // 🔥 3. tool name al
     let name =
       payload.name ||
       payload.tool ||
       payload.tool_name ||
       "";
 
-    // 🔥 prefix temizle (Search_mcp1-search_web -> search_web)
-    if (name.includes("-")) {
+    // 🔥 4. prefix temizle (Search_mcp1-search_web → search_web)
+    if (name && name.includes("-")) {
       name = name.split("-").pop();
     }
 
-    // 🔥 arguments farklı gelebilir
+    // 🔥 5. arguments normalize
     const args =
       payload.arguments ||
       payload.args ||
       {};
 
+    // 🔥 6. tool kontrol
     if (name !== "search_web") {
       return res.json({
         error: "Unknown tool",
@@ -64,32 +72,19 @@ app.post("/tools/call", async (req, res) => {
     }
 
     if (!args.query) {
-      return res.json({
-        error: "Missing query"
-      });
+      return res.json({ error: "Missing query" });
     }
 
+    // 🔥 7. SearXNG çağrısı
     const base = process.env.SEARXNG_URL;
 
     if (!base) {
-      return res.json({
-        error: "SEARXNG_URL missing"
-      });
+      return res.json({ error: "SEARXNG_URL missing" });
     }
 
-    const query = encodeURIComponent(args.query);
-
-    const url = `${base}/search?q=${query}&format=json`;
+    const url = `${base}/search?q=${encodeURIComponent(args.query)}&format=json`;
 
     const response = await fetch(url);
-
-    if (!response.ok) {
-      return res.json({
-        error: "SearXNG request failed",
-        status: response.status
-      });
-    }
-
     const data = await response.json();
 
     const results = (data.results || []).slice(0, 5).map((r) => ({

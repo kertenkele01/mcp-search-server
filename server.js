@@ -3,7 +3,7 @@ const app = express();
 
 app.use(express.json());
 
-// TOOL LIST
+// MCP TOOL LIST
 app.get("/tools/list", (req, res) => {
   res.json({
     tools: [
@@ -22,25 +22,57 @@ app.get("/tools/list", (req, res) => {
   });
 });
 
-// TOOL CALL
+// MCP TOOL CALL
 app.post("/tools/call", async (req, res) => {
-  const { name, arguments: args } = req.body;
+  try {
+    const { name, arguments: args } = req.body;
 
-  if (name === "search_web") {
-    const response = await fetch(
-      "https://search.coolify.denemetest.app/search?q=" + args.query
-    );
+    if (name !== "search_web") {
+      return res.json({ error: "Unknown tool" });
+    }
 
-    const data = await response.text();
+    const query = encodeURIComponent(args.query);
+
+    // 🔥 IMPORTANT: JSON MODE
+    const url = `http://SEARXNG_URL/search?q=${query}&format=json`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      return res.json({
+        error: "SearXNG request failed",
+        status: response.status
+      });
+    }
+
+    const data = await response.json();
+
+    // sadece önemli alanları döndürelim
+    const results = (data.results || []).slice(0, 5).map(r => ({
+      title: r.title,
+      url: r.url,
+      snippet: r.content
+    }));
 
     return res.json({
-      content: data
+      content: results
+    });
+
+  } catch (err) {
+    return res.json({
+      error: "Server error",
+      message: err.message
     });
   }
-
-  res.json({ error: "unknown tool" });
 });
 
-app.listen(3000, () => {
-  console.log("MCP server running");
+// HEALTH CHECK
+app.get("/", (req, res) => {
+  res.json({ status: "MCP server running" });
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("MCP server running on port", PORT);
 });
